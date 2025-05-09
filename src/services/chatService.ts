@@ -1,6 +1,7 @@
 
 import { Message } from "@/types/chat";
 import { toast } from "sonner";
+import { detectEmotions, getEmotionResponse } from "@/utils/emotionDetector";
 
 declare global {
   interface Window {
@@ -10,8 +11,12 @@ declare global {
 
 export const sendChatMessage = async (
   message: string, 
-  model: string
+  model: string,
+  systemPrompt: string = ""
 ): Promise<Message | null> => {
+  const startTime = performance.now();
+  const emotions = detectEmotions(message);
+  
   try {
     // Check auth first
     if (!window.puter || !(await window.puter.auth.isSignedIn())) {
@@ -19,10 +24,18 @@ export const sendChatMessage = async (
       return null;
     }
     
-    const response = await window.puter.ai.chat(message, { 
+    // Prepare the chat options
+    const chatOptions: any = { 
       model: model,
-      stream: false // Changed to false to get complete response at once
-    });
+      stream: false
+    };
+    
+    // Add system prompt if provided
+    if (systemPrompt) {
+      chatOptions.systemPrompt = systemPrompt;
+    }
+    
+    const response = await window.puter.ai.chat(message, chatOptions);
     
     // Debug the response structure
     console.log("AI response:", response);
@@ -46,13 +59,26 @@ export const sendChatMessage = async (
       responseContent = "Sorry, I couldn't process that request. Please try again.";
     }
     
+    // Add emotion response if emotions were detected
+    const emotionResponse = getEmotionResponse(emotions);
+    if (emotionResponse) {
+      responseContent = `${emotionResponse}\n\n${responseContent}`;
+    }
+    
+    const endTime = performance.now();
+    const responseTime = Math.round(endTime - startTime);
+    
     return {
       sender: "ai" as const,
       content: responseContent,
       timestamp: new Date(),
+      responseTime,
+      emotions
     };
   } catch (error) {
     console.error("AI chat error:", error);
+    const endTime = performance.now();
+    const responseTime = Math.round(endTime - startTime);
     
     toast.error("Something went wrong with the AI response.");
     
@@ -60,6 +86,7 @@ export const sendChatMessage = async (
       sender: "system" as const,
       content: `⚠️ Error: ${error instanceof Error ? error.message : "Failed to get response"}`,
       timestamp: new Date(),
+      responseTime
     };
   }
 };
