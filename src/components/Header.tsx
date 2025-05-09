@@ -47,9 +47,17 @@ export const Header = () => {
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
-      const result = await window.puter.auth.signIn();
-      setUser(result.user);
-      toast.success(`Welcome, ${result.user.name || result.user.email}! 🎉`);
+      // Fix: The signIn method might not always return user data in the expected format
+      await window.puter.auth.signIn();
+      
+      // After sign-in, explicitly call getUser to get the user data
+      const userData = await window.puter.auth.getUser();
+      if (userData) {
+        setUser(userData);
+        toast.success(`Welcome, ${userData.name || userData.email}! 🎉`);
+      } else {
+        toast.error("Failed to get user data after sign-in.");
+      }
     } catch (error) {
       console.error("Sign-in error:", error);
       toast.error("Failed to sign in. Please try again.");
