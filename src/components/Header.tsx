@@ -19,7 +19,14 @@ export const Header = () => {
     const script = document.createElement("script");
     script.src = "https://js.puter.com/v2/";
     script.async = true;
-    script.onload = checkAuth;
+    
+    // Set a more robust onload handler
+    script.onload = () => {
+      console.log("Puter script loaded, waiting for initialization");
+      // Give more time for the script to initialize
+      setTimeout(checkAuth, 1000);
+    };
+    
     document.head.appendChild(script);
 
     // Also add jQuery as requested
@@ -27,31 +34,50 @@ export const Header = () => {
     jqueryScript.src = "https://code.jquery.com/jquery-3.6.0.min.js";
     jqueryScript.async = true;
     document.head.appendChild(jqueryScript);
+    
+    return () => {
+      // Cleanup function
+      script.remove();
+      jqueryScript.remove();
+    };
   }, []);
 
   const checkAuth = async () => {
     try {
       setIsLoading(true);
-      // Give a short delay to ensure puter is loaded fully
-      setTimeout(async () => {
+      console.log("Checking authentication status...");
+      
+      // Ensure puter is fully loaded
+      if (!window.puter || !window.puter.auth) {
+        console.log("Puter API not yet available, retrying in 1.5s");
+        setTimeout(checkAuth, 1500);
+        return;
+      }
+      
+      // Check if signed in
+      const isSignedIn = await window.puter.auth.isSignedIn();
+      console.log("Is signed in:", isSignedIn);
+      
+      if (isSignedIn) {
         try {
-          if (window.puter && typeof window.puter.auth === 'object') {
-            if (await window.puter.auth.isSignedIn()) {
-              const userData = await window.puter.auth.getUser();
-              if (userData && userData.email) {
-                setUser(userData);
-                toast.success(`Welcome back, ${userData.name || userData.email}! 👋`);
-              }
-            }
+          const userData = await window.puter.auth.getUser();
+          console.log("User data:", userData);
+          
+          if (userData && userData.email) {
+            setUser(userData);
+            toast.success(`Welcome back, ${userData.name || userData.email}! 👋`);
+          } else {
+            console.error("User data missing email:", userData);
           }
-        } catch (innerError) {
-          console.error("Delayed auth check error:", innerError);
-        } finally {
-          setIsLoading(false);
+        } catch (userError) {
+          console.error("Failed to get user data:", userError);
         }
-      }, 500);
+      } else {
+        console.log("User not signed in");
+      }
     } catch (error) {
       console.error("Auth check error:", error);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -59,20 +85,32 @@ export const Header = () => {
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
+      console.log("Starting sign-in process");
+      
+      // Ensure puter is fully loaded
+      if (!window.puter || !window.puter.auth) {
+        toast.error("Puter API not available. Please refresh the page.");
+        setIsLoading(false);
+        return;
+      }
       
       // First sign in
       await window.puter.auth.signIn();
+      console.log("Sign-in completed, getting user data");
       
-      // Add a small delay before fetching user data to ensure authentication is complete
+      // Add a longer delay before fetching user data to ensure authentication is complete
       setTimeout(async () => {
         try {
           // Then explicitly get user data
           const userData = await window.puter.auth.getUser();
+          console.log("User data after sign-in:", userData);
+          
           if (userData && userData.email) {
             setUser(userData);
             toast.success(`Welcome, ${userData.name || userData.email}! 🎉`);
           } else {
-            toast.error("Failed to get user data after sign-in.");
+            console.error("User data missing after sign-in:", userData);
+            toast.error("Failed to get user data. Please try again.");
           }
         } catch (innerError) {
           console.error("Get user error:", innerError);
@@ -80,7 +118,7 @@ export const Header = () => {
         } finally {
           setIsLoading(false);
         }
-      }, 500);
+      }, 1500); // Increased delay to 1.5 seconds
     } catch (error) {
       console.error("Sign-in error:", error);
       toast.error("Failed to sign in. Please try again.");
@@ -90,11 +128,13 @@ export const Header = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log("Signing out");
       await window.puter.auth.signOut();
       setUser(null);
       toast.info("You've been signed out. Come back soon! 👋");
     } catch (error) {
       console.error("Sign-out error:", error);
+      toast.error("Failed to sign out properly.");
     }
   };
 

@@ -21,11 +21,30 @@ export const sendChatMessage = async (
     
     const response = await window.puter.ai.chat(message, { 
       model: model,
-      stream: true 
+      stream: false // Changed to false to get complete response at once
     });
     
-    // Check if response and response.message exist before accessing content
-    const responseContent = response?.message?.content || "Sorry, I couldn't generate a response.";
+    // Debug the response structure
+    console.log("AI response:", response);
+    
+    // Extract content directly from the response if it exists
+    let responseContent = "";
+    
+    if (response && typeof response === 'object') {
+      // Handle different response structures
+      if (response.message && response.message.content) {
+        responseContent = response.message.content;
+      } else if (response.content) {
+        responseContent = response.content;
+      } else if (typeof response === 'string') {
+        responseContent = response;
+      }
+    }
+    
+    // Fallback message if we couldn't extract content
+    if (!responseContent) {
+      responseContent = "Sorry, I couldn't process that request. Please try again.";
+    }
     
     return {
       sender: "ai" as const,
