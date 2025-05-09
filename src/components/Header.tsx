@@ -32,10 +32,12 @@ export const Header = () => {
   const checkAuth = async () => {
     try {
       setIsLoading(true);
-      if (await window.puter.auth.isSignedIn()) {
+      if (window.puter && await window.puter.auth.isSignedIn()) {
         const userData = await window.puter.auth.getUser();
-        setUser(userData);
-        toast.success(`Welcome back, ${userData.name || userData.email}! 👋`);
+        if (userData && userData.email) {
+          setUser(userData);
+          toast.success(`Welcome back, ${userData.name || userData.email}! 👋`);
+        }
       }
     } catch (error) {
       console.error("Auth check error:", error);
@@ -47,12 +49,12 @@ export const Header = () => {
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
-      // Fix: The signIn method might not always return user data in the expected format
+      // First sign in
       await window.puter.auth.signIn();
       
-      // After sign-in, explicitly call getUser to get the user data
+      // Then explicitly get user data
       const userData = await window.puter.auth.getUser();
-      if (userData) {
+      if (userData && userData.email) {
         setUser(userData);
         toast.success(`Welcome, ${userData.name || userData.email}! 🎉`);
       } else {
@@ -92,7 +94,7 @@ export const Header = () => {
         ) : user ? (
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8 border border-border">
-              <AvatarFallback>{user.email.charAt(0).toUpperCase()}</AvatarFallback>
+              <AvatarFallback>{user.email ? user.email.charAt(0).toUpperCase() : '?'}</AvatarFallback>
             </Avatar>
             <div className="hidden sm:block text-sm font-medium">{user.name || user.email}</div>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
