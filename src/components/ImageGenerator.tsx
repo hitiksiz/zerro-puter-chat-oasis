@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Loader2, Image } from "lucide-react";
+import { Loader2, Image, Download } from "lucide-react";
 import { toast } from "sonner";
 
 export const ImageGenerator = () => {
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [imageElement, setImageElement] = useState<HTMLImageElement | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [testMode, setTestMode] = useState(true);
   
   const generateImage = async () => {
@@ -25,19 +25,43 @@ export const ImageGenerator = () => {
       }
       
       setIsGenerating(true);
-      setImageElement(null);
+      setImageUrl(null);
       
       toast.info(`🖼️ Generating image: "${finalPrompt}"${testMode ? " (Test Mode)" : ""}`);
       
       const imgElement = await window.puter.ai.txt2img(finalPrompt, testMode);
-      setImageElement(imgElement);
       
-      toast.success("Image generated successfully! ✨");
+      // Extract and store the image URL from the element
+      if (imgElement && imgElement.src) {
+        setImageUrl(imgElement.src);
+        toast.success("Image generated successfully! ✨");
+      } else {
+        throw new Error("Generated image has no valid source");
+      }
     } catch (error) {
       console.error("Image generation error:", error);
       toast.error("Failed to generate image. Please try again.");
     } finally {
       setIsGenerating(false);
+    }
+  };
+  
+  const downloadImage = async () => {
+    if (!imageUrl) return;
+    
+    try {
+      // Create a link element
+      const link = document.createElement('a');
+      link.href = imageUrl;
+      link.download = `generated-image-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("Image downloaded successfully! 📥");
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Failed to download image. Please try again.");
     }
   };
   
@@ -86,16 +110,22 @@ export const ImageGenerator = () => {
                 <p className="text-muted-foreground">Generating your image...</p>
               </div>
             </div>
-          ) : imageElement ? (
-            <div className="image-container w-full flex justify-center">
-              <div 
-                ref={(el) => {
-                  if (el && imageElement && !el.hasChildNodes()) {
-                    el.appendChild(imageElement);
-                  }
-                }}
+          ) : imageUrl ? (
+            <div className="image-container w-full flex flex-col items-center gap-4">
+              <img 
+                src={imageUrl} 
+                alt="Generated image" 
                 className="max-w-full rounded-md overflow-hidden shadow-lg"
               />
+              
+              <Button 
+                variant="outline" 
+                onClick={downloadImage} 
+                className="mt-2"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Image
+              </Button>
             </div>
           ) : (
             <div className="min-h-[300px] flex items-center justify-center">
