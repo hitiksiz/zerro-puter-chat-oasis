@@ -97,9 +97,12 @@ export const Chat = () => {
           stream: true 
         });
         
+        // Fix: Check if response and response.message exist before accessing content
+        const responseContent = response?.message?.content || "Sorry, I couldn't generate a response.";
+        
         const aiMessage = {
           sender: "ai" as const,
-          content: response.message.content,
+          content: responseContent,
           timestamp: new Date(),
         };
         

@@ -32,16 +32,26 @@ export const Header = () => {
   const checkAuth = async () => {
     try {
       setIsLoading(true);
-      if (window.puter && await window.puter.auth.isSignedIn()) {
-        const userData = await window.puter.auth.getUser();
-        if (userData && userData.email) {
-          setUser(userData);
-          toast.success(`Welcome back, ${userData.name || userData.email}! 👋`);
+      // Give a short delay to ensure puter is loaded fully
+      setTimeout(async () => {
+        try {
+          if (window.puter && typeof window.puter.auth === 'object') {
+            if (await window.puter.auth.isSignedIn()) {
+              const userData = await window.puter.auth.getUser();
+              if (userData && userData.email) {
+                setUser(userData);
+                toast.success(`Welcome back, ${userData.name || userData.email}! 👋`);
+              }
+            }
+          }
+        } catch (innerError) {
+          console.error("Delayed auth check error:", innerError);
+        } finally {
+          setIsLoading(false);
         }
-      }
+      }, 500);
     } catch (error) {
       console.error("Auth check error:", error);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -49,21 +59,31 @@ export const Header = () => {
   const handleSignIn = async () => {
     try {
       setIsLoading(true);
+      
       // First sign in
       await window.puter.auth.signIn();
       
-      // Then explicitly get user data
-      const userData = await window.puter.auth.getUser();
-      if (userData && userData.email) {
-        setUser(userData);
-        toast.success(`Welcome, ${userData.name || userData.email}! 🎉`);
-      } else {
-        toast.error("Failed to get user data after sign-in.");
-      }
+      // Add a small delay before fetching user data to ensure authentication is complete
+      setTimeout(async () => {
+        try {
+          // Then explicitly get user data
+          const userData = await window.puter.auth.getUser();
+          if (userData && userData.email) {
+            setUser(userData);
+            toast.success(`Welcome, ${userData.name || userData.email}! 🎉`);
+          } else {
+            toast.error("Failed to get user data after sign-in.");
+          }
+        } catch (innerError) {
+          console.error("Get user error:", innerError);
+          toast.error("Failed to get user information.");
+        } finally {
+          setIsLoading(false);
+        }
+      }, 500);
     } catch (error) {
       console.error("Sign-in error:", error);
       toast.error("Failed to sign in. Please try again.");
-    } finally {
       setIsLoading(false);
     }
   };
